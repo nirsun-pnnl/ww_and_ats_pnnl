@@ -32,7 +32,7 @@ For reproducibility, always record the exact git commit that you installed.
 
 
 ===============================================================================
-0. WHAT WILL BE INSTALLED
+1. WHAT WILL BE INSTALLED
 ===============================================================================
 
 Required:
@@ -51,10 +51,10 @@ Optional, but normally needed when preparing ATS meshes:
 
 
 ===============================================================================
-1. PREREQUISITES
+2. PREREQUISITES
 ===============================================================================
 
-1.1 Install the macOS command-line development tools
+2.1 Install the macOS command-line development tools
 
 Open Terminal and run:
 
@@ -63,7 +63,7 @@ Open Terminal and run:
 If they are already installed, macOS will tell you.
 
 
-1.2 Install Conda
+2.2 Install Conda
 
 Install one of the following:
 
@@ -78,7 +78,7 @@ After installation, open a new Terminal and verify:
 
 
 ===============================================================================
-2. CHOOSE AN INSTALL LOCATION AND ENVIRONMENT NAME
+3. CHOOSE AN INSTALL LOCATION AND ENVIRONMENT NAME
 ===============================================================================
 
 The examples below use:
@@ -98,7 +98,7 @@ Create the installation directory:
 
 
 ===============================================================================
-3. DOWNLOAD WATERSHED WORKFLOW
+4. DOWNLOAD WATERSHED WORKFLOW
 ===============================================================================
 
 Clone the current master branch:
@@ -124,7 +124,7 @@ Save this information with your project notes.
 
 
 ===============================================================================
-4. CREATE THE WATERSHED WORKFLOW CONDA ENVIRONMENT
+5. CREATE THE WATERSHED WORKFLOW CONDA ENVIRONMENT
 ===============================================================================
 
 Watershed Workflow provides a helper script for creating its Python environment.
@@ -146,7 +146,7 @@ The Python path should point inside the ww_master conda environment.
 
 
 ===============================================================================
-5. INSTALL WATERSHED WORKFLOW
+6. INSTALL WATERSHED WORKFLOW
 ===============================================================================
 
 Stay inside the watershed-workflow repository and run:
@@ -166,7 +166,7 @@ Check several core packages:
 
 
 ===============================================================================
-6. INSTALL JUPYTERLAB AND COMMON NOTEBOOK TOOLS
+7. INSTALL JUPYTERLAB AND COMMON NOTEBOOK TOOLS
 ===============================================================================
 
 With the ww_master environment active:
@@ -190,7 +190,7 @@ This provides interactive zooming and panning inside the notebook.
 
 
 ===============================================================================
-7. REGISTER THE CONDA ENVIRONMENT AS A JUPYTER KERNEL
+8. REGISTER THE CONDA ENVIRONMENT AS A JUPYTER KERNEL
 ===============================================================================
 
 With ww_master activated:
@@ -212,7 +212,7 @@ as the Python kernel.
 
 
 ===============================================================================
-8. CONFIGURE WATERSHED WORKFLOW
+9. CONFIGURE WATERSHED WORKFLOW
 ===============================================================================
 
 Watershed Workflow uses a configuration file named:
@@ -240,7 +240,7 @@ Create it if needed:
 
 
 ===============================================================================
-9. BASIC INSTALLATION CHECK
+10. BASIC INSTALLATION CHECK
 ===============================================================================
 
 Run:
@@ -261,7 +261,7 @@ Optional developer test:
 
 
 ===============================================================================
-10. OPTIONAL: INSTALL SEACAS / EXODUSII
+11. OPTIONAL: INSTALL SEACAS / EXODUSII
 ===============================================================================
 
 SEACAS provides the ExodusII library and the Python "exodus" interface used for
@@ -271,7 +271,7 @@ For Watershed Workflow users who need Exodus output, an Exodus-only SEACAS build
 is normally sufficient.
 
 
-10.1 Start from the Watershed Workflow environment
+11.1 Start from the Watershed Workflow environment
 
     conda activate ww_master
 
@@ -280,13 +280,13 @@ Go to the parent installation directory:
     cd ~/watershed_workflow
 
 
-10.2 Clone a fresh SEACAS source tree
+11.2 Clone a fresh SEACAS source tree
 
     git clone https://github.com/sandialabs/seacas.git
     cd seacas
 
 
-10.3 Apply the Exodus Python patch provided by the current WW checkout
+11.3 Apply the Exodus Python patch provided by the current WW checkout
 
 First check whether the patch exists:
 
@@ -300,7 +300,7 @@ This keeps the Exodus Python interface aligned with the current Watershed
 Workflow checkout.
 
 
-10.4 Configure the Exodus build
+11.4 Configure the Exodus build
 
 Define the active conda environment as the dependency location:
 
@@ -322,7 +322,7 @@ For a normal local macOS installation, use a serial build:
     export MPI=NO
 
 
-10.5 Build and install Exodus
+11.5 Build and install Exodus
 
 Create a clean build directory:
 
@@ -347,7 +347,7 @@ The Exodus installation should now be located under:
     ~/watershed_workflow/seacas/exodus_conda
 
 
-10.6 Make the Exodus Python module visible to this conda environment
+11.6 Make the Exodus Python module visible to this conda environment
 
 Create a small .pth file inside the active environment:
 
@@ -357,7 +357,7 @@ Create a small .pth file inside the active environment:
     echo "$INSTALL_PATH/lib" > "$SITE/seacas_exodus.pth"
 
 
-10.7 Verify Exodus
+11.7 Verify Exodus
 
 Run:
 
@@ -369,7 +369,7 @@ Then verify Watershed Workflow can be imported in the same Python environment:
 
 
 ===============================================================================
-11. START JUPYTERLAB
+12. START JUPYTERLAB
 ===============================================================================
 
 Activate the environment:
@@ -392,7 +392,7 @@ When opening or creating a notebook, select the kernel:
 
 
 ===============================================================================
-12. FINAL VERIFICATION
+13. FINAL VERIFICATION
 ===============================================================================
 
 With ww_master active, run:
@@ -415,3 +415,94 @@ Record the installed WW git commit:
     cd ~/watershed_workflow/watershed-workflow
     git rev-parse HEAD
     git describe --tags --always
+
+
+===============================================================================
+14. INSTALL AMANZI_XML AND ATS_INPUT_SPEC
+===============================================================================
+
+
+14.1 Purpose
+------------
+
+`amanzi_xml` and `ats_input_spec` are optional for Watershed Workflow itself,
+but they are useful when the next step is preparing ATS input files.
+
+  - amanzi_xml
+      Python utilities for working with Amanzi/ATS XML input files.
+
+  - ats_input_spec
+      Python tools for constructing ATS input files.
+
+Both packages can be installed into the same conda environment used for
+Watershed Workflow.
+
+
+14.2 Activate the Watershed Workflow environment
+------------------------------------------------
+
+Activate the Watershed Workflow environment:
+
+    conda activate ww_master
+
+Return to the main installation directory:
+
+    cd ~/watershed_workflow
+
+
+14.3 Clone Amanzi and install amanzi_xml
+----------------------------------------
+
+Clone the Amanzi repository:
+
+    git clone https://github.com/amanzi/amanzi.git
+
+Go to the amanzi_xml package:
+
+    cd amanzi/tools/amanzi_xml
+
+Install it in editable mode:
+
+    python -m pip install -e .
+
+Verify:
+
+    python -c "import amanzi_xml; print('amanzi_xml OK')"
+
+
+14.4 Clone and install ats_input_spec
+-------------------------------------
+
+Return to the main installation directory:
+
+    cd ~/watershed_workflow
+
+Clone ats_input_spec:
+
+    git clone https://github.com/ecoon/ats_input_spec.git
+
+Go into the repository:
+
+    cd ats_input_spec
+
+Install it in editable mode:
+
+    python -m pip install -e .
+
+Verify:
+
+    python -c "import ats_input_spec; print('ats_input_spec OK')"
+
+
+14.5 Verify both Python tools together
+--------------------------------------
+
+Run:
+
+    python - <<'PY'
+import amanzi_xml
+import ats_input_spec
+
+print("amanzi_xml OK")
+print("ats_input_spec OK")
+PY
