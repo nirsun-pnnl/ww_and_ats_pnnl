@@ -1,0 +1,417 @@
+
+March 03, 2026
+
+WATERSHED WORKFLOW INSTALLATION GUIDE
+macOS | Master/Development Version | Conda Environment
+
+===============================================================================
+OFFICIAL SOURCES
+===============================================================================
+
+Watershed Workflow:
+    https://github.com/environmental-modeling-workflows/watershed-workflow
+
+Watershed Workflow documentation:
+    https://environmental-modeling-workflows.github.io/watershed-workflow/
+
+SEACAS:
+    https://github.com/sandialabs/seacas
+
+
+Purpose
+-------
+This guide provides a simple, reproducible way to install the current master
+version of Watershed Workflow (WW) on macOS and, optionally, SEACAS/Exodus for
+writing ExodusII meshes.
+
+Watershed Workflow and SEACAS are actively developed projects. Their master
+branches change over time. These instructions therefore focus on the normal
+installation workflow rather than version-specific troubleshooting.
+
+For reproducibility, always record the exact git commit that you installed.
+
+
+===============================================================================
+0. WHAT WILL BE INSTALLED
+===============================================================================
+
+Required:
+  - Watershed Workflow source code from GitHub
+  - A dedicated conda environment
+  - Watershed Workflow Python dependencies
+
+Recommended for notebook users:
+  - JupyterLab
+  - IPython kernel support
+  - seaborn
+  - matplotlib notebook widgets
+
+Optional, but normally needed when preparing ATS meshes:
+  - SEACAS / ExodusII Python interface
+
+
+===============================================================================
+1. PREREQUISITES
+===============================================================================
+
+1.1 Install the macOS command-line development tools
+
+Open Terminal and run:
+
+    xcode-select --install
+
+If they are already installed, macOS will tell you.
+
+
+1.2 Install Conda
+
+Install one of the following:
+
+  - Miniforge / Mambaforge
+  - Anaconda
+
+After installation, open a new Terminal and verify:
+
+    conda --version
+    git --version
+    python3 --version
+
+
+===============================================================================
+2. CHOOSE AN INSTALL LOCATION AND ENVIRONMENT NAME
+===============================================================================
+
+The examples below use:
+
+    Installation directory:
+        ~/watershed_workflow
+
+    Conda environment:
+        ww_master
+
+You may use different names if desired.
+
+Create the installation directory:
+
+    mkdir -p ~/watershed_workflow
+    cd ~/watershed_workflow
+
+
+===============================================================================
+3. DOWNLOAD WATERSHED WORKFLOW
+===============================================================================
+
+Clone the current master branch:
+
+    git clone https://github.com/environmental-modeling-workflows/watershed-workflow.git
+    cd watershed-workflow
+
+Confirm that you are on master:
+
+    git branch --show-current
+
+Expected:
+
+    master
+
+
+Record the exact source version for future reproducibility:
+
+    git rev-parse HEAD
+    git describe --tags --always --dirty
+
+Save this information with your project notes.
+
+
+===============================================================================
+4. CREATE THE WATERSHED WORKFLOW CONDA ENVIRONMENT
+===============================================================================
+
+Watershed Workflow provides a helper script for creating its Python environment.
+
+From inside the watershed-workflow repository:
+
+    python3 environments/create_envs.py ww_master
+
+Activate the environment:
+
+    conda activate ww_master
+
+Confirm that the environment is active:
+
+    which python
+    python --version
+
+The Python path should point inside the ww_master conda environment.
+
+
+===============================================================================
+5. INSTALL WATERSHED WORKFLOW
+===============================================================================
+
+Stay inside the watershed-workflow repository and run:
+
+    python -m pip install -e .
+
+The "-e" means editable installation. The Python package uses the source code
+directly from this git checkout.
+
+Verify the installation:
+
+    python -c "import watershed_workflow as ww; print('Watershed Workflow:', ww.__version__)"
+
+Check several core packages:
+
+    python -c "import watershed_workflow, geopandas, xarray, rioxarray, dask, meshpy; print('Core imports OK')"
+
+
+===============================================================================
+6. INSTALL JUPYTERLAB AND COMMON NOTEBOOK TOOLS
+===============================================================================
+
+With the ww_master environment active:
+
+    python -m pip install jupyterlab seaborn ipykernel ipywidgets ipympl
+
+Verify:
+
+    jupyter lab --version
+
+    python -c "import seaborn; print('seaborn:', seaborn.__version__)"
+
+    python -c "import IPython; print('IPython:', IPython.__version__)"
+
+
+For interactive matplotlib figures in a Jupyter notebook, use:
+
+    %matplotlib widget
+
+This provides interactive zooming and panning inside the notebook.
+
+
+===============================================================================
+7. REGISTER THE CONDA ENVIRONMENT AS A JUPYTER KERNEL
+===============================================================================
+
+With ww_master activated:
+
+    python -m ipykernel install --user \
+        --name ww_master \
+        --display-name "ww_master"
+
+Verify that the kernel exists:
+
+    jupyter kernelspec list
+
+
+When opening a notebook in JupyterLab, select:
+
+    ww_master
+
+as the Python kernel.
+
+
+===============================================================================
+8. CONFIGURE WATERSHED WORKFLOW
+===============================================================================
+
+Watershed Workflow uses a configuration file named:
+
+    ~/.watershed_workflowrc
+
+From the watershed-workflow repository:
+
+    cp watershed_workflowrc ~/.watershed_workflowrc
+
+Open the file in a text editor. For example:
+
+    nano ~/.watershed_workflowrc
+
+Review the configuration and set the Watershed Workflow data-library location
+to a directory with sufficient disk space.
+
+For example, a user may choose:
+
+    ~/watershed_workflow_data
+
+Create it if needed:
+
+    mkdir -p ~/watershed_workflow_data
+
+
+===============================================================================
+9. BASIC INSTALLATION CHECK
+===============================================================================
+
+Run:
+
+    python -c "import watershed_workflow; print('Watershed Workflow import OK')"
+
+    python -c "import watershed_workflow.ui; print('UI import OK')"
+
+    python -c "import watershed_workflow.sources; print('Sources import OK')"
+
+    python -c "import watershed_workflow.io; print('IO import OK')"
+
+
+Optional developer test:
+
+    cd ~/watershed_workflow/watershed-workflow
+    pytest watershed_workflow/test
+
+
+===============================================================================
+10. OPTIONAL: INSTALL SEACAS / EXODUSII
+===============================================================================
+
+SEACAS provides the ExodusII library and the Python "exodus" interface used for
+working with Exodus mesh files.
+
+For Watershed Workflow users who need Exodus output, an Exodus-only SEACAS build
+is normally sufficient.
+
+
+10.1 Start from the Watershed Workflow environment
+
+    conda activate ww_master
+
+Go to the parent installation directory:
+
+    cd ~/watershed_workflow
+
+
+10.2 Clone a fresh SEACAS source tree
+
+    git clone https://github.com/sandialabs/seacas.git
+    cd seacas
+
+
+10.3 Apply the Exodus Python patch provided by the current WW checkout
+
+First check whether the patch exists:
+
+    ls ../watershed-workflow/environments/exodus_py.patch
+
+If it exists, apply it:
+
+    git apply ../watershed-workflow/environments/exodus_py.patch
+
+This keeps the Exodus Python interface aligned with the current Watershed
+Workflow checkout.
+
+
+10.4 Configure the Exodus build
+
+Define the active conda environment as the dependency location:
+
+    export WW_ENV="$CONDA_PREFIX"
+
+Define the SEACAS install location:
+
+    export ACCESS="$(pwd)"
+    export INSTALL_PATH="$ACCESS/exodus_conda"
+
+Use the NetCDF/HDF5 libraries available in the active WW conda environment:
+
+    export HDF5_PATH="$WW_ENV"
+    export NETCDF_PATH="$WW_ENV"
+    export PNETCDF_PATH="$WW_ENV"
+
+For a normal local macOS installation, use a serial build:
+
+    export MPI=NO
+
+
+10.5 Build and install Exodus
+
+Create a clean build directory:
+
+    mkdir -p build_exodus_conda
+    cd build_exodus_conda
+
+Configure the Exodus-only build:
+
+    ../cmake-exodus
+
+Build using the available CPU cores:
+
+    make -j"$(sysctl -n hw.ncpu)"
+
+Install:
+
+    make install
+
+
+The Exodus installation should now be located under:
+
+    ~/watershed_workflow/seacas/exodus_conda
+
+
+10.6 Make the Exodus Python module visible to this conda environment
+
+Create a small .pth file inside the active environment:
+
+    PYVER=$(python -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
+    SITE="$CONDA_PREFIX/lib/python${PYVER}/site-packages"
+
+    echo "$INSTALL_PATH/lib" > "$SITE/seacas_exodus.pth"
+
+
+10.7 Verify Exodus
+
+Run:
+
+    python -c "import exodus; print('Exodus:', exodus.__file__)"
+
+Then verify Watershed Workflow can be imported in the same Python environment:
+
+    python -c "import exodus, watershed_workflow.io; print('Exodus and Watershed Workflow OK')"
+
+
+===============================================================================
+11. START JUPYTERLAB
+===============================================================================
+
+Activate the environment:
+
+    conda activate ww_master
+
+Move to the directory containing your notebooks, for example:
+
+    cd ~/watershed_workflow
+
+Start JupyterLab:
+
+    jupyter lab
+
+A browser window should open.
+
+When opening or creating a notebook, select the kernel:
+
+    ww_master
+
+
+===============================================================================
+12. FINAL VERIFICATION
+===============================================================================
+
+With ww_master active, run:
+
+    python -c "import watershed_workflow as ww; print('WW version:', ww.__version__)"
+
+    python -c "import watershed_workflow.io; print('WW IO OK')"
+
+    python -c "import geopandas, xarray, rioxarray, dask; print('Core dependencies OK')"
+
+    python -c "import seaborn, IPython; print('Notebook tools OK')"
+
+If SEACAS/Exodus was installed:
+
+    python -c "import exodus; print('Exodus:', exodus.__file__)"
+
+
+Record the installed WW git commit:
+
+    cd ~/watershed_workflow/watershed-workflow
+    git rev-parse HEAD
+    git describe --tags --always

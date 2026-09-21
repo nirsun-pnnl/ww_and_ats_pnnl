@@ -1,0 +1,508 @@
+March 03, 2026
+
+Official Source:
+https://github.com/amanzi/ats
+
+
+ATS 1.6.0 Installation on NERSC Perlmutter
+==============================================
+
+Purpose
+-------
+This guide provides a clean, reproducible workflow for installing ATS 1.6.0 on NERSC Perlmutter from scratch.
+
+It is written for a new user who may not be familiar with ATS, Amanzi, or the NERSC software environment.
+
+The goal is to:
+- install ATS 1.6.0,
+- build the required Amanzi third-party libraries,
+- use the NERSC GNU/Cray MPI environment,
+- record the installation so it can be reproduced later.
+
+This guide intentionally focuses on the normal installation workflow and does not include transient troubleshooting steps that may depend on the current NERSC software stack.
+
+
+0. Expected result
+------------------
+
+At the end of the installation, ATS should be available at a path similar to:
+
+${ATS_BASE}/amanzi-install-ats-1.6.0-Release/bin/ats
+
+The installation can be verified with:
+
+ats --print_version
+
+A successful installation should report ATS 1.6.0 and Amanzi 1.6.0, for example:
+
+ATS version     1.6.0_<hash>
+Amanzi version  1.6.0_<hash>
+
+
+1. Start a fresh Perlmutter shell and load modules
+--------------------------------------------------
+
+Start from a fresh terminal session whenever possible.
+
+Load a consistent GNU/Cray MPI software stack:
+
+module purge
+module load cpe/25.09
+module load PrgEnv-gnu/8.6.0
+module load cray-mpich/9.0.1
+module load gcc-native/14
+module load cray-libsci/25.09.0
+module load cudatoolkit/12.9
+module load cmake/3.30.2
+module load conda/Miniforge3-25.11.0-1
+
+Check the loaded environment:
+
+module list
+
+Important notes:
+- NERSC periodically updates module versions.
+- The exact versions above are the versions used for this installation.
+- If these exact versions are no longer available, use the current compatible versions of:
+  PrgEnv-gnu, Cray MPICH, GCC, CMake, CUDA toolkit, and Miniforge/Conda.
+- Keep the compiler and MPI environment consistent throughout the installation and when running ATS.
+
+
+2. Create or activate a Conda environment
+-----------------------------------------
+
+ATS/Amanzi bootstrap tools require a modern Python environment.
+
+First initialize Conda:
+
+source "$(conda info --base)/etc/profile.d/conda.sh"
+
+Activate an existing environment or create a new one.
+
+Example using an existing environment:
+
+conda activate <YOUR_CONDA_ENV>
+
+Check Python:
+
+which python3
+python3 --version
+
+Python 3.9 or newer is recommended.
+
+The installation documented here used Python 3.11.
+
+It is also useful to ensure that libaec is available in the Conda environment:
+
+mamba install -c conda-forge libaec -y
+
+Add the Conda library directory to the runtime library path:
+
+export LD_LIBRARY_PATH="$CONDA_PREFIX/lib:${LD_LIBRARY_PATH:-}"
+
+
+3. Define the ATS installation environment
+------------------------------------------
+
+Choose a permanent installation directory.
+
+Example:
+
+export ATS_BASE=/global/cfs/cdirs/your_project_folder/$USER/ats/install-ats-versions/ats_160
+
+You may choose a different path appropriate for your NERSC project.
+
+Add the following environment variables to ~/.bashrc.
+
+Before modifying ~/.bashrc, it is recommended to make a backup:
+
+cp ~/.bashrc ~/.bashrc.backup_$(date +%Y%m%d_%H%M%S)
+
+Then add:
+
+# ---- ATS 1.6.0 / Amanzi environment ----
+
+export ATS_BASE="/global/cfs/cdirs/your_project_folder/$USER/ats/install-ats-versions/ats_160"
+export ATS_BUILD_TYPE="Release"
+export ATS_VERSION="ats-1.6.0"
+
+# NERSC uses Cray MPICH.
+export OPENMPI_DIR="$MPICH_DIR"
+
+# Amanzi third-party library directories.
+export AMANZI_TPLS_BUILD_DIR="${ATS_BASE}/amanzi_tpls-build-${ATS_VERSION}-${ATS_BUILD_TYPE}"
+export AMANZI_TPLS_DIR="${ATS_BASE}/amanzi_tpls-install-${ATS_VERSION}-${ATS_BUILD_TYPE}"
+
+# Amanzi source, build, and install directories.
+export AMANZI_SRC_DIR="${ATS_BASE}/repos/amanzi"
+export AMANZI_BUILD_DIR="${ATS_BASE}/amanzi-build-${ATS_VERSION}-${ATS_BUILD_TYPE}"
+export AMANZI_DIR="${ATS_BASE}/amanzi-install-${ATS_VERSION}-${ATS_BUILD_TYPE}"
+
+# ATS source directory inside the Amanzi repository.
+export ATS_SRC_DIR="${AMANZI_SRC_DIR}/src/physics/ats"
+
+# ATS executable is installed with Amanzi.
+export ATS_DIR="${AMANZI_DIR}"
+
+# Executable search paths.
+export PATH="${ATS_DIR}/bin:${PATH}"
+export PATH="${AMANZI_TPLS_DIR}/bin:${PATH}"
+
+# Python utilities distributed with ATS/Amanzi.
+export PYTHONPATH="${ATS_SRC_DIR}/tools/utils:${PYTHONPATH:-}"
+export PYTHONPATH="${AMANZI_TPLS_DIR}/SEACAS/lib:${PYTHONPATH}"
+
+After saving ~/.bashrc, reload it:
+
+source ~/.bashrc
+
+Check the main variables:
+
+echo "$ATS_BASE"
+echo "$ATS_VERSION"
+echo "$AMANZI_SRC_DIR"
+echo "$AMANZI_DIR"
+
+
+4. Create the source directory and clone Amanzi 1.6.0
+-----------------------------------------------------
+
+Create the repository directory:
+
+mkdir -p "${ATS_BASE}/repos"
+
+Move there:
+
+cd "${ATS_BASE}/repos"
+
+Clone the Amanzi 1.6.0 release:
+
+git clone -b amanzi-1.6.0 https://github.com/amanzi/amanzi.git "${AMANZI_SRC_DIR}"
+
+Enter the repository:
+
+cd "${AMANZI_SRC_DIR}"
+
+Verify the release:
+
+git describe --tags --always
+
+Create a local branch at the exact Amanzi 1.6.0 release commit:
+
+git switch -c amanzi-1.6.0-local
+
+This does not modify the Amanzi source code. It simply gives the checked-out release commit a local branch name.
+
+Check the repository state:
+
+git status
+
+
+5. Create the ATS/Amanzi build script
+-------------------------------------
+
+Create the file:
+
+${ATS_BASE}/build_ats_160.sh
+
+The script should contain:
+
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [ "${ATS_BUILD_TYPE}" == "Debug" ]; then
+  dbg_option=--debug
+elif [ "${ATS_BUILD_TYPE}" == "RelWithDebInfo" ]; then
+  dbg_option=--relwithdebinfo
+else
+  dbg_option=--opt
+fi
+
+echo "Running Amanzi Bootstrap with:"
+echo "  AMANZI_SRC_DIR:        ${AMANZI_SRC_DIR}"
+echo "  AMANZI_BUILD_DIR:      ${AMANZI_BUILD_DIR}"
+echo "  AMANZI_INSTALL_DIR:    ${AMANZI_DIR}"
+echo "  AMANZI_TPLS_BUILD_DIR: ${AMANZI_TPLS_BUILD_DIR}"
+echo "  AMANZI_TPLS_DIR:       ${AMANZI_TPLS_DIR}"
+echo "  ATS_VERSION:           ${ATS_VERSION}"
+echo "  Python:                $(which python3) ($(python3 --version))"
+echo ""
+
+"${AMANZI_SRC_DIR}/bootstrap.sh" \
+  ${dbg_option} \
+  --with-mpi="${OPENMPI_DIR}" \
+  --enable-shared \
+  --disable-clm \
+  --disable-structured \
+  --enable-unstructured \
+  --enable-mesh_mstk \
+  --disable-mesh_moab \
+  --enable-hypre \
+  --disable-silo \
+  --enable-petsc \
+  --disable-amanzi_physics \
+  --enable-ats_physics \
+  --disable-ats_dev \
+  --enable-geochemistry \
+  --amanzi-install-prefix="${AMANZI_DIR}" \
+  --amanzi-build-dir="${AMANZI_BUILD_DIR}" \
+  --tpl-install-prefix="${AMANZI_TPLS_DIR}" \
+  --tpl-build-dir="${AMANZI_TPLS_BUILD_DIR}" \
+  --tpl-download-dir="${ATS_BASE}/amanzi-tpls/Downloads" \
+  --tools-download-dir="${ATS_BASE}/amanzi-tpls/Downloads" \
+  --tools-build-dir="${ATS_BASE}/build" \
+  --tools-install-prefix="${ATS_BASE}/install" \
+  --with-python="$(which python3)" \
+  --with-cmake="$(which cmake)" \
+  --with-ctest="$(which ctest)" \
+  --branch_ats="${ATS_VERSION}" \
+  --parallel=8 \
+  --with-c-compiler="$(which cc)" \
+  --with-cxx-compiler="$(which CC)" \
+  --with-fort-compiler="$(which ftn)" \
+  --enable-alquimia \
+  --enable-pflotran \
+  --enable-crunchtope
+
+Make the script executable:
+
+chmod +x "${ATS_BASE}/build_ats_160.sh"
+
+
+6. Review the build configuration
+---------------------------------
+
+Before starting the installation, confirm the active environment:
+
+which cc
+which CC
+which ftn
+which cmake
+which ctest
+which python3
+
+Check compiler versions if desired:
+
+cc --version
+CC --version
+ftn --version
+cmake --version
+python3 --version
+
+Check the main ATS/Amanzi variables:
+
+echo "$ATS_BASE"
+echo "$ATS_VERSION"
+echo "$AMANZI_SRC_DIR"
+echo "$AMANZI_BUILD_DIR"
+echo "$AMANZI_TPLS_BUILD_DIR"
+echo "$AMANZI_TPLS_DIR"
+
+Also ensure the Conda library directory is available:
+
+export LD_LIBRARY_PATH="$CONDA_PREFIX/lib:${LD_LIBRARY_PATH:-}"
+
+
+7. Run the installation
+-----------------------
+
+Run the build script and save the complete output to a timestamped log file:
+
+bash "${ATS_BASE}/build_ats_160.sh" 2>&1 | \
+tee "${ATS_BASE}/build_ats_160_$(date +%Y%m%d_%H%M%S).log"
+
+The Amanzi bootstrap process will:
+1. configure the selected third-party libraries,
+2. download and build required dependencies,
+3. configure Amanzi,
+4. obtain/configure ATS 1.6.0,
+5. compile Amanzi/ATS,
+6. install the final executable and supporting libraries.
+
+The complete build can take significant time.
+
+Do not interrupt the build unless it has clearly failed.
+
+If the installation stops with an error, keep the log file. The final portion of the log is usually the most useful information for diagnosing the problem.
+
+
+8. Verify the installation
+--------------------------
+
+Reload the shell environment if needed:
+
+source ~/.bashrc
+
+If using the Conda environment:
+
+source "$(conda info --base)/etc/profile.d/conda.sh"
+conda activate <YOUR_CONDA_ENV>
+
+Ensure the Conda libraries are visible:
+
+export LD_LIBRARY_PATH="$CONDA_PREFIX/lib:${LD_LIBRARY_PATH:-}"
+
+Locate ATS:
+
+which ats
+
+The result should point to:
+
+${ATS_BASE}/amanzi-install-ats-1.6.0-Release/bin/ats
+
+Check the installed version:
+
+ats --print_version
+
+A successful installation should report ATS 1.6.0 and Amanzi 1.6.0.
+
+
+9. Check shared-library dependencies
+------------------------------------
+
+Check whether the ATS executable has any unresolved shared libraries:
+
+ldd "$(which ats)" | grep "not found"
+
+If the command prints nothing, no unresolved shared-library dependency was detected.
+
+It can also be useful to inspect selected runtime dependencies:
+
+ldd "$(which ats)" | egrep "mpi|hdf5|netcdf|sz|aec|cudart"
+
+
+10. Save installation provenance
+--------------------------------
+
+For reproducibility, record the exact software environment and source commits used for the installation.
+
+Save the currently loaded NERSC modules:
+
+module list 2> "${ATS_BASE}/module_list_$(date +%Y%m%d).txt"
+
+Save the Amanzi commit:
+
+cd "${AMANZI_SRC_DIR}"
+git rev-parse HEAD > "${ATS_BASE}/amanzi_commit.txt"
+
+Save the ATS commit:
+
+cd "${ATS_SRC_DIR}"
+git rev-parse HEAD > "${ATS_BASE}/ats_commit.txt"
+
+Save the installed version information:
+
+ats --print_version > "${ATS_BASE}/ats_version.txt"
+
+It is also useful to save Python and compiler information:
+
+{
+  echo "Date:"
+  date
+  echo
+  echo "Python:"
+  which python3
+  python3 --version
+  echo
+  echo "CMake:"
+  which cmake
+  cmake --version
+  echo
+  echo "C compiler:"
+  which cc
+  cc --version
+  echo
+  echo "C++ compiler:"
+  which CC
+  CC --version
+  echo
+  echo "Fortran compiler:"
+  which ftn
+  ftn --version
+} > "${ATS_BASE}/build_environment.txt"
+
+
+11. Minimal ATS runtime environment
+-----------------------------------
+
+When running ATS in a Slurm job, use a software stack consistent with the build environment.
+
+A representative ATS 1.6.0 batch script is:
+
+#!/bin/bash
+#SBATCH -N 4
+#SBATCH -C cpu
+#SBATCH -q debug
+#SBATCH -J ats
+#SBATCH -t 00:10:00
+
+cd "$SLURM_SUBMIT_DIR"
+
+module purge
+module load cpe/25.09
+module load PrgEnv-gnu/8.6.0
+module load cray-mpich/9.0.1
+module load gcc-native/14
+module load cray-libsci/25.09.0
+module load cudatoolkit/12.9
+module load conda/Miniforge3-25.11.0-1
+
+source "$(conda info --base)/etc/profile.d/conda.sh"
+conda activate <YOUR_CONDA_ENV>
+
+export ATS_BASE=/global/cfs/cdirs/your_project_folder/$USER/ats/install-ats-versions/ats_160
+export ATS_EXEC="${ATS_BASE}/amanzi-install-ats-1.6.0-Release/bin/ats"
+
+export LD_LIBRARY_PATH="$CONDA_PREFIX/lib:${LD_LIBRARY_PATH:-}"
+
+module list
+
+srun -n 512 "$ATS_EXEC" your_input_file.xml
+
+Replace:
+- <YOUR_CONDA_ENV> with the Conda environment used for the installation,
+- ATS_BASE with the actual installation path,
+- your_input_file.xml with the ATS XML input file.
+
+
+12. Recommended final validation
+--------------------------------
+
+Before using the installation for production simulations:
+
+1. Run:
+   ats --print_version
+
+2. Run:
+   ldd "$(which ats)" | grep "not found"
+
+3. Run a small ATS case that is already known to work.
+
+4. Confirm that ATS:
+   - starts correctly,
+   - reads the XML input,
+   - initializes the mesh,
+   - advances at least several timesteps,
+   - writes expected output files.
+
+5. Only after the small test succeeds should the installation be used for large production jobs.
+
+
+Summary
+-------
+
+The normal installation workflow is:
+
+1. Load a consistent NERSC compiler/MPI environment.
+2. Activate a modern Conda/Python environment.
+3. Define ATS/Amanzi paths.
+4. Clone the Amanzi 1.6.0 release.
+5. Create a local branch at the release commit.
+6. Create the Amanzi bootstrap/build script.
+7. Build ATS and its required dependencies.
+8. Verify ATS 1.6.0 with ats --print_version.
+9. Check runtime shared libraries.
+10. Save module, compiler, Python, Amanzi, and ATS version information.
+11. Run a small ATS case before beginning production simulations.
+
+Because NERSC periodically updates its software environment, exact module versions may change over time. The most important requirement is to keep the compiler, MPI, Python, and runtime environment internally consistent throughout the build and execution of ATS.
