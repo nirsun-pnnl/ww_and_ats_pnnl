@@ -1,0 +1,24 @@
+Watershed Workflow Version Used by This Notebook
+================================================
+
+The shared notebook in this directory was developed and tested with the
+following Watershed Workflow version:
+
+    1.5.0.post145+gc45097e
+
+This version was installed on March 3, 2026.
+
+The relevant upstream commit immediately preceding that installation was:
+
+    Adds new pit filling algorithms for dual meshes (#153)
+    https://github.com/environmental-modeling-workflows/watershed-workflow/commit/c45097ed5e3bb3913b4237cb8ec11b83fd6bf972
+
+Watershed Workflow evolves over time. New versions may introduce changes to
+workflow syntax, algorithms, or other behavior. As a result, this notebook
+may not run exactly as written with a newer or different version of Watershed
+Workflow, and it may require minor or substantial refactoring.
+
+When updating or refactoring this notebook, consult the example notebooks in
+the Watershed Workflow GitHub repository:
+
+    https://github.com/environmental-modeling-workflows/watershed-workflow/tree/master/examples
